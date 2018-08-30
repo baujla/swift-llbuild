@@ -393,6 +393,10 @@ typedef struct llb_buildsystem_delegate_t_ {
   void (*command_had_warning)(void* context,
                            llb_buildsystem_command_t* command,
                            const llb_data_t* data);
+  
+  void (*command_reason_for_build)(void *context,
+                                     llb_buildsystem_command_t* command,
+                                     const llb_data_t* data);
 
   /// Called to report a command could not build due to missing inputs.
   void (*command_cannot_build_output_due_to_missing_inputs)(void *context,

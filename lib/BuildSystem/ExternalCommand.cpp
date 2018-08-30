@@ -157,17 +157,24 @@ getResultForOutput(Node* node, const BuildValue& value) {
 bool ExternalCommand::isResultValid(BuildSystem& system,
                                     const BuildValue& value) {
   // Treat the command as always out-of-date, if requested.
-  if (alwaysOutOfDate)
+  if (alwaysOutOfDate) {
+    system.getDelegate().commandReasonForBuild(this, "Command will always be rebuilt.");
     return false;
-      
+  }
+  
   // If the prior value wasn't for a successful command, recompute.
-  if (!value.isSuccessfulCommand())
+  if (!value.isSuccessfulCommand()) {
+    system.getDelegate().commandReasonForBuild(this, "Command was not successful last time build system built project.");
     return false;
-    
-  // If the command's signature has changed since it was built, rebuild.
-  if (value.getCommandSignature() != getSignature())
-    return false;
+  }
 
+  // If the command's signature has changed since it was built, rebuild.
+  if (value.getCommandSignature() != getSignature()) {
+    // TODO: We need more information from the command signature.
+    system.getDelegate().commandReasonForBuild(this, "Difference in command signature.");
+    return false;
+  }
+  
   // Check the timestamps on each of the outputs.
   for (unsigned i = 0, e = outputs.size(); i != e; ++i) {
     auto* node = outputs[i];
@@ -191,17 +198,22 @@ bool ExternalCommand::isResultValid(BuildSystem& system,
     // could enable behavior to remove such output files if annotated prior to
     // running the command.
     auto info = node->getFileInfo(system.getFileSystem());
-
+    auto currentInfo = value.getNthOutputInfo(i);
+    
     // If this output is mutated by the build, we can't rely on equivalence,
     // only existence.
     if (node->isMutated()) {
-      if (value.getNthOutputInfo(i).isMissing() != info.isMissing())
+      if (currentInfo.isMissing() != info.isMissing()) {
+        system.getDelegate().commandReasonForBuild(this, "Output has been mutated 1. " + node->getName().str());
         return false;
+      }
       continue;
     }
-
-    if (value.getNthOutputInfo(i) != info)
+    
+    if (currentInfo != info) {
+      system.getDelegate().commandReasonForBuild(this, "Output has been mutated 2. " + node->getName().str());
       return false;
+    }
   }
 
   // Otherwise, the result is ok.

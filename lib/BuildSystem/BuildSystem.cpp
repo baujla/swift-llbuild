@@ -516,6 +516,9 @@ public:
     // redundant in the case where we have never built the node before (or need
     // to rebuild it), and thus the additional stat is only one small part of
     // the work we need to perform.
+    
+    //TODO: Potentially where to hook into inputs. There is no command here though.
+    
     auto info = node.getFileInfo(
         getBuildSystem(engine).getFileSystem());
     if (info.isMissing()) {
@@ -2527,8 +2530,9 @@ public:
     return BuildValue::makeInvalid();
   }
   
-  virtual bool isResultValid(BuildSystem&, const BuildValue& value) override {
+  virtual bool isResultValid(BuildSystem& system, const BuildValue& value) override {
     // Always rebuild this task.
+    system.getDelegate().commandReasonForBuild(this, "Swift Get Version is always rebuilt.");
     return false;
   }
 
@@ -3101,19 +3105,22 @@ class MkdirCommand : public ExternalCommand {
   virtual bool isResultValid(BuildSystem& system,
                              const BuildValue& value) override {
     // If the prior value wasn't for a successful command, recompute.
-    if (!value.isSuccessfulCommand())
+    if (!value.isSuccessfulCommand()) {
+      system.getDelegate().commandReasonForBuild(this, "Previous mkdir command was not ran successfully.");
       return false;
-
+    }
     // Otherwise, the result is valid if the directory still exists.
     auto info = getOutputs()[0]->getFileInfo(
         system.getFileSystem());
-    if (info.isMissing())
+    if (info.isMissing()) {
+      system.getDelegate().commandReasonForBuild(this, "Previous result from mkdir command is missing.");
       return false;
-
+    }
     // If the item is not a directory, it needs to be recreated.
-    if (!info.isDirectory())
+    if (!info.isDirectory()) {
+      system.getDelegate().commandReasonForBuild(this, "Previous result from mkdir command is not a directory.");
       return false;
-
+    }
     // FIXME: We should strictly enforce the integrity of this validity routine
     // by ensuring that the build result for this command does not fully encode
     // the file info, but rather just encodes its success. As is, we are leaking
@@ -3312,27 +3319,32 @@ class SymlinkCommand : public Command {
                              const BuildValue& value) override {
     // It is an error if this command isn't configured properly.
     StringRef outputPath = getActualOutputPath();
-    if (!output || outputPath.empty())
+    if (!output || outputPath.empty()) {
+      system.getDelegate().commandReasonForBuild(this, "Symlink command's path has never been previously resolved");
       return false;
-
+    }
     // If the prior value wasn't for a successful command, recompute.
-    if (!value.isSuccessfulCommand())
+    if (!value.isSuccessfulCommand()) {
+      system.getDelegate().commandReasonForBuild(this, "Symlink command was not successful last time build system built project.");
       return false;
-    
+    }
     // If the command's signature has changed since it was built, rebuild.
-    if (value.getCommandSignature() != getSignature())
+    if (value.getCommandSignature() != getSignature()) {
+      system.getDelegate().commandReasonForBuild(this, "Symlink command has different command signature.");
       return false;
-
+    }
     // If the prior command doesn't look like one for a link, recompute.
-    if (value.getNumOutputs() != 1)
+    if (value.getNumOutputs() != 1) {
+      system.getDelegate().commandReasonForBuild(this, "Symlink command's previous result does not look like one for a link.");
       return false;
-
+    }
     // Otherwise, assume the result is valid if its link status matches the
     // previous one.
     auto info = system.getFileSystem().getLinkInfo(outputPath);
-    if (info.isMissing())
+    if (info.isMissing()) {
+      system.getDelegate().commandReasonForBuild(this, "Symlink command's previous output is missing.");
       return false;
-
+    }
     return info == value.getOutputInfo();
   }
   
@@ -3668,6 +3680,7 @@ class StaleFileRemovalCommand : public Command {
   virtual bool isResultValid(BuildSystem& system,
                              const BuildValue& value) override {
     // Always re-run stale file removal.
+    system.getDelegate().commandReasonForBuild(this, "Stale file removal is always re-ran.");
     return false;
   }
 

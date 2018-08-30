@@ -38,6 +38,8 @@
 ///
 /// Version History:
 ///
+/// 9: Added delegate method, command_reason_for_build, to keep track of why certain commands built.
+///
 /// 8: Move scheduler algorithm and lanes into llb_buildsystem_invocation_t
 ///
 /// 7: Added destroy_context task delegate method.

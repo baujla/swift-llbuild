@@ -462,6 +462,9 @@ public protocol BuildSystemDelegate {
 
     /// Called to report a warning during the execution of a command.
     func commandHadWarning(_ command: Command, message: String)
+    
+    /// Called to report reason the command was built.
+    func commandReasonForBuild(_ command: Command, message: String)
 
     /// Called by the build system to report a command could not build due to
     /// missing inputs.
@@ -623,6 +626,7 @@ public final class BuildSystem {
         _delegate.command_had_error = { BuildSystem.toSystem($0!).commandHadError(Command($1), $2!) }
         _delegate.command_had_note = { BuildSystem.toSystem($0!).commandHadNote(Command($1), $2!) }
         _delegate.command_had_warning = { BuildSystem.toSystem($0!).commandHadWarning(Command($1), $2!) }
+        _delegate.command_reason_for_build = {BuildSystem.toSystem($0!).commandReasonForBuild(Command($1), $2!) }
         _delegate.command_cannot_build_output_due_to_missing_inputs = {
             let inputsPtr = $3!
             let inputs = (0..<Int($4)).map { BuildKey(key: inputsPtr[$0]) }
@@ -824,6 +828,10 @@ public final class BuildSystem {
 
     private func commandHadWarning(_ command: Command, _ data: UnsafePointer<llb_data_t>) {
         delegate.commandHadWarning(command, message: stringFromData(data.pointee))
+    }
+    
+    private func commandReasonForBuild(_ command: Command, _ data: UnsafePointer<llb_data_t>) {
+        delegate.commandReasonForBuild(command, message: stringFromData(data.pointee))
     }
 
     private func commandCannotBuildOutputDueToMissingInputs(_ command: Command, _ output: BuildKey, _ inputs: [BuildKey]) {

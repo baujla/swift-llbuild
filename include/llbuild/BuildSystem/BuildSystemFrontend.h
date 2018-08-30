@@ -223,7 +223,16 @@ public:
   ///
   /// \param data - The warning message.
   virtual void commandHadWarning(Command*, StringRef data) override;
-
+  
+  /// Called to report on why a command built.
+  /// TODO: Should this appear on full builds or just rebuilds?
+  /// TODO: Should data just be a string reporting why a command rebuilt, or should it just be generic info in a class which allows for a higher level build system to handle it.
+  /// TODO: Implement functionality in llbuild.
+  /// TODO: This will get information from ExternalCommands::IsResultValid and Input changes, anywhere else?
+  ///
+  /// \param data - The message which describes why the command built.
+  virtual void commandReasonForBuild(Command*, StringRef data) override;
+  
   /// Called by the build system to report a command has completed.
   ///
   /// \param result - The result of command (e.g. success, failure, etc).

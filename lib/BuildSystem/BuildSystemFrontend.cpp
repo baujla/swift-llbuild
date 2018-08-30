@@ -559,6 +559,11 @@ void BuildSystemFrontendDelegate::commandHadWarning(Command* command, StringRef 
 void BuildSystemFrontendDelegate::commandFinished(Command*, ProcessStatus) {
 }
 
+void BuildSystemFrontendDelegate::commandReasonForBuild(Command* command, StringRef data) {
+  fwrite(data.data(), data.size(), 1, stdout);
+  fflush(stdout);
+}
+
 void BuildSystemFrontendDelegate::commandCannotBuildOutputDueToMissingInputs(
      Command * command, Node *output, SmallPtrSet<Node *, 1> inputs) {
   std::string message;

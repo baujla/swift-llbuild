@@ -277,7 +277,17 @@ public:
          &cMessage);
     }
   }
-
+  
+  virtual void commandReasonForBuild(Command* command, StringRef message) override {
+    if (cAPIDelegate.command_reason_for_build) {
+      llb_data_t cMessage { message.size(), (const uint8_t*) message.data() };
+      cAPIDelegate.command_reason_for_build(
+         cAPIDelegate.context,
+         (llb_buildsystem_command_t*) command,
+         &cMessage);
+    }
+  }
+  
   virtual void commandCannotBuildOutputDueToMissingInputs(Command* command,
                Node* outputNode, SmallPtrSet<Node*, 1> inputNodes) override {
     if (cAPIDelegate.command_cannot_build_output_due_to_missing_inputs) {
