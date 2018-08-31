@@ -198,7 +198,7 @@ public:
   ///
   /// \param data - The message which describes why the command built.
   virtual void commandReasonForBuild(Command*, StringRef data) = 0;
-  
+    
   /// Called by the build system to report a command has completed.
   ///
   /// \param status - The status of command (e.g. success, failure, etc).

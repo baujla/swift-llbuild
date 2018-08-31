@@ -57,7 +57,9 @@ class BuildNode : public Node {
   /// build, but it is used to detect when the file system information on a node
   /// cannot be safely used to track *output* file state.
   bool mutated;
-
+  
+  
+  
   /// Exclusion filters for directory listings
   ///
   /// Items matching these filter strings are not considered as part of the
@@ -70,8 +72,12 @@ public:
                      bool isCommandTimestamp, bool isMutated)
       : Node(name), directory(isDirectory),
         directoryStructure(isDirectoryStructure), virtualNode(isVirtual),
-        commandTimestamp(isCommandTimestamp), mutated(isMutated) {}
-
+        commandTimestamp(isCommandTimestamp), mutated(isMutated),
+        commandsToReportTo(std::vector<Command*>()) {}
+  
+  //TODO: Does this need to be a vector or could it be a single command.
+  std::vector<Command*> commandsToReportTo;
+  
   /// Check whether this is a "virtual" (non-filesystem related) node.
   bool isVirtual() const { return virtualNode; }
 

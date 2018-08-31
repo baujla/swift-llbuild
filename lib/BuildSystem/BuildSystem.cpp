@@ -455,6 +455,11 @@ public:
   static bool isResultValid(BuildEngine& engine, Target& node,
                             const BuildValue& value) {
     // Always treat target tasks as invalid.
+    for(auto node: node.getNodes()) {
+      for (auto command: node->getProducers()) {
+        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "Target tasks always need to be rebuilt.");
+      }
+    }
     return false;
   }
 };
@@ -464,7 +469,7 @@ public:
 /// the system.
 class FileInputNodeTask : public Task {
   BuildNode& node;
-
+  
   virtual void start(BuildEngine& engine) override {
     assert(node.getProducers().empty());
   }
@@ -501,7 +506,7 @@ public:
     assert(!node.isVirtual());
   }
 
-  static bool isResultValid(BuildEngine& engine, const BuildNode& node,
+  static bool isResultValid(BuildEngine& engine, BuildNode& node,
                             const BuildValue& value) {
     // The result is valid if the existence matches the value type and the file
     // information remains the same.
@@ -522,9 +527,23 @@ public:
     auto info = node.getFileInfo(
         getBuildSystem(engine).getFileSystem());
     if (info.isMissing()) {
-      return value.isMissingInput();
+      if(value.isMissingInput()) {
+        return true;
+      } else {
+        for(auto command: node.commandsToReportTo) {
+          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "Build system needs to rebuild as input was previously missing, but is now present.");
+        }
+        return false;
+      }
     } else {
-      return value.isExistingInput() && value.getOutputInfo() == info;
+      if(value.isExistingInput() && value.getOutputInfo() == info) {
+        return true;
+      } else {
+        for(auto command: node.commandsToReportTo) {
+          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "Input has been changed in " + node.getName().str());
+        }
+        return false;
+      }
     }
   }
 };
@@ -684,7 +703,14 @@ public:
   static bool isResultValid(BuildEngine& engine, const BuildNode& node,
                             const BuildValue& value) {
     // Virtual input nodes are always valid unless the value type is wrong.
-    return value.isVirtualInput();
+    if (value.isVirtualInput()) {
+      return true;
+    } else {
+      for(auto command: node.getProducers()) {
+        getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "The value type for this task in the build system was wrong, must rebuild.");
+      }
+      return false;
+    }
   }
 };
 
@@ -753,19 +779,25 @@ public:
   ProducedNodeTask(Node& node)
       : node(node), nodeResult(BuildValue::makeInvalid()) {}
   
-  static bool isResultValid(BuildEngine&, Node& node,
+  static bool isResultValid(BuildEngine& engine, Node& node,
                             const BuildValue& value) {
     // If the result was failure, we always need to rebuild (it may produce an
     // error).
-    if (value.isFailedInput())
+    if (value.isFailedInput()) {
+      for (auto command: node.getProducers()) {
+        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "Result previously failed.");
+      }
       return false;
-
+    }
     // If the result was previously a missing input, it may have been because
     // we did not previously know how to produce this node. We do now, so
     // attempt to build it now.
-    if (value.isMissingInput())
+    if (value.isMissingInput()) {
+      for (auto command: node.getProducers()) {
+        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "This was previously missing an input.");
+      }
       return false;
-
+    }
     // The produced node result itself doesn't need any synchronization.
     return true;
   }
@@ -1408,8 +1440,9 @@ public:
   static bool isResultValid(BuildEngine& engine, Command& command,
                             const BuildValue& value) {
     // Delegate to the command for further checking.
-    return command.isResultValid(
+    auto isResultValid = command.isResultValid(
         getBuildSystem(engine).getBuildSystem(), value);
+    return isResultValid;
   }
 };
 

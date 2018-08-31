@@ -215,7 +215,13 @@ bool ExternalCommand::isResultValid(BuildSystem& system,
       return false;
     }
   }
-
+  
+  // At this point we do not know if we are going to rebuild, as the inputs have not yet been processed.
+  // Some of the inputs will be a node task and lose track of task producer, so we need to keep track of the command so we know where to report in case the result is invalid.
+  for(auto input: inputs) {
+    input->commandsToReportTo.push_back(this);
+  }
+  
   // Otherwise, the result is ok.
   return true;
 }
