@@ -158,31 +158,83 @@ bool ExternalCommand::isResultValid(BuildSystem& system,
                                     const BuildValue& value) {
   // Treat the command as always out-of-date, if requested.
   if (alwaysOutOfDate) {
-    system.getDelegate().commandReasonForBuild(this, "Command will always be rebuilt.");
+    system.getDelegate().commandReasonForBuild(this, "Command always has to be built. This is either due to the build system requiring it to be rebuilt every time, a project setting, or undefined inputs/outputs.");
     return false;
   }
   
-  // If the prior value wasn't for a successful command, recompute.
-  if (!value.isSuccessfulCommand()) {
-    system.getDelegate().commandReasonForBuild(this, "Command was not successful last time build system built project.");
+  if(!value.isSuccessfulCommand()) {
+    if(value.isFailedCommand()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it failed, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isCancelledCommand()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it was cancelled, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isMissingInput()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it had missing input, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isInvalid()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it was invalid, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isFailedInput()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it's input failed, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isMissingOutput()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it's output was missing, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    if(value.isSkippedCommand()) {
+      system.getDelegate().commandReasonForBuild(this, "The last time this command ran it was skipped, therefore it has to be rebuilt.");
+      return false;
+    }
+    
+    system.getDelegate().commandReasonForBuild(this, "The last time this command ran it did not run successfully, therefore it has to be rebuilt.");
     return false;
   }
-
+  
   // If the command's signature has changed since it was built, rebuild.
   if (value.getCommandSignature() != getSignature()) {
-    // TODO: We need more information from the command signature.
-    system.getDelegate().commandReasonForBuild(this, "Difference in command signature.");
+    if(outputs.size() > value.getNumOutputs()) {
+      system.getDelegate().commandReasonForBuild(this, "Command has added output, therefore it has to be rebuilt.");
+      return false;
+    }
+    else if(outputs.size() < value.getNumOutputs()) {
+      system.getDelegate().commandReasonForBuild(this, "Command has removed output, therefore it has to be rebuilt.");
+      return false;
+    } else {
+      for(unsigned i = 0, e = outputs.size(); i != e; ++i) {
+        auto* node = outputs[i];
+        
+        if(node->getFileInfo(system.getFileSystem()) != value.getNthOutputInfo(i)) {
+          system.getDelegate().commandReasonForBuild(this, "Command has modified outputs, therefore it has to be rebuilt.");
+          return false;
+        }
+      }
+    }
+    
+    // TODO: We need more information from the command signature. This is difficult as most of the information is hashed in various different places and not retained.
+    system.getDelegate().commandReasonForBuild(this, "This command has a different command signature compared to the last time it ran.");
     return false;
   }
   
   // Check the timestamps on each of the outputs.
   for (unsigned i = 0, e = outputs.size(); i != e; ++i) {
     auto* node = outputs[i];
-
+    
     // Ignore virtual outputs.
     if (node->isVirtual())
       continue;
-
+    
     // Rebuild if the output information has changed.
     //
     // We intentionally allow missing outputs here, as long as they haven't
@@ -204,14 +256,14 @@ bool ExternalCommand::isResultValid(BuildSystem& system,
     // only existence.
     if (node->isMutated()) {
       if (currentInfo.isMissing() != info.isMissing()) {
-        system.getDelegate().commandReasonForBuild(this, "Output has been mutated 1. " + node->getName().str());
+        system.getDelegate().commandReasonForBuild(this, node->getName().str() + " output has been mutated.");
         return false;
       }
       continue;
     }
     
     if (currentInfo != info) {
-      system.getDelegate().commandReasonForBuild(this, "Output has been mutated 2. " + node->getName().str());
+      system.getDelegate().commandReasonForBuild(this, node->getName().str() + " output has been mutated.");
       return false;
     }
   }

@@ -531,7 +531,7 @@ public:
         return true;
       } else {
         for(auto command: node.commandsToReportTo) {
-          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "Build system needs to rebuild as input was previously missing, but is now present.");
+          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, node.getName().str() + " was previously missing, but has since been located.");
         }
         return false;
       }
@@ -540,7 +540,7 @@ public:
         return true;
       } else {
         for(auto command: node.commandsToReportTo) {
-          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "Input has been changed in " + node.getName().str());
+          getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, node.getName().str() + " has been modified.");
         }
         return false;
       }
@@ -706,8 +706,8 @@ public:
     if (value.isVirtualInput()) {
       return true;
     } else {
-      for(auto command: node.getProducers()) {
-        getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "The value type for this task in the build system was wrong, must rebuild.");
+      for(auto command: node.commandsToReportTo) {
+        getBuildSystem(engine).getCommandInterface().getDelegate().commandReasonForBuild(command, "The node " + node.getName().str() + " is used by task expecting virtual node, but it is not virtual.");
       }
       return false;
     }
@@ -784,9 +784,10 @@ public:
     // If the result was failure, we always need to rebuild (it may produce an
     // error).
     if (value.isFailedInput()) {
-      for (auto command: node.getProducers()) {
-        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "Result previously failed.");
-      }
+      //TODO: There doesn't need to be this message as the command will send a similar one at a higher level. Having each Node output an error is unnecessary.
+      //for (auto command: node.getProducers()) {
+        //getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "The last time " + node.getName().str() + " ran it failed or was cancelled, therefore it has to be rebuilt.");
+      //}
       return false;
     }
     // If the result was previously a missing input, it may have been because
@@ -794,7 +795,7 @@ public:
     // attempt to build it now.
     if (value.isMissingInput()) {
       for (auto command: node.getProducers()) {
-        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, "This was previously missing an input.");
+        getBuildSystem(engine).getDelegate().commandReasonForBuild(command, node.getName().str() + " was previously missing one of its expected inputs, therefore it has to be rebuilt.");
       }
       return false;
     }
@@ -906,10 +907,15 @@ public:
                             const BuildValue& value) {
     // The result is valid if the existence matches the existing value type, and
     // the file information remains the same.
+    
     auto info = getBuildSystem(engine).getFileSystem().getFileInfo(
         path);
     if (info.isMissing()) {
-      return value.isMissingInput();
+      if(value.isMissingInput()) {
+        return true;
+      } else {
+        return false;
+      }
     } else {
       if (!value.isDirectoryContents())
         return false;
@@ -919,9 +925,14 @@ public:
         return false;
 
       // For files, it is direct stat info that matters
-      if (!info.isDirectory())
-        return value.getOutputInfo() == info;
-
+      if (!info.isDirectory()) {
+        if(value.getOutputInfo() == info) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      
       // With filters, we list the current filtered contents and then compare
       // the lists.
       std::vector<std::string> cur;
@@ -1440,9 +1451,8 @@ public:
   static bool isResultValid(BuildEngine& engine, Command& command,
                             const BuildValue& value) {
     // Delegate to the command for further checking.
-    auto isResultValid = command.isResultValid(
+    return command.isResultValid(
         getBuildSystem(engine).getBuildSystem(), value);
-    return isResultValid;
   }
 };
 
