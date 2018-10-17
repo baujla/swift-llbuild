@@ -142,6 +142,13 @@ public:
       messages.push_back(("commandWarning(" + command->getName() + ") " + data).str());
     }
   }
+  
+  virtual void commandReasonForBuild(Command* command, StringRef data) {
+    if (trackAllMessages) {
+      std::unique_lock<std::mutex> lock(messagesMutex);
+      messages.push_back(("commandReasonForBuild(" + command->getName() + ") " + data).str());
+    }
+  }
 
   virtual void commandFinished(Command* command, ProcessStatus result) {
     if (trackAllMessages) {
