@@ -211,15 +211,6 @@ bool ExternalCommand::isResultValid(BuildSystem& system,
     else if(outputs.size() < value.getNumOutputs()) {
       system.getDelegate().commandReasonForBuild(this, "Command has removed output, therefore it has to be rebuilt.");
       return false;
-    } else {
-      for(unsigned i = 0, e = outputs.size(); i != e; ++i) {
-        auto* node = outputs[i];
-        
-        if(node->getFileInfo(system.getFileSystem()) != value.getNthOutputInfo(i)) {
-          system.getDelegate().commandReasonForBuild(this, "Command has modified outputs, therefore it has to be rebuilt.");
-          return false;
-        }
-      }
     }
     
     // TODO: We need more information from the command signature. This is difficult as most of the information is hashed in various different places and not retained.
